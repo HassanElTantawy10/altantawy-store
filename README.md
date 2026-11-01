@@ -1,2 +1,2 @@
-# altantawy-store
-Altantawy Store - mobile web app (PWA)
+# مخازن الطنطاوي — نسخة الموبايل
+تطبيق ويب (PWA) بيتزامن مع برنامج اللاب عن طريق Google Apps Script. الكود بس هنا — البيانات محمية بكلمة سر في Drive بتاع صاحب الحساب.
