@@ -309,6 +309,9 @@ html[data-theme=dark] tbody tr:nth-child(even){background:#0F192B}
 html[data-theme=dark] tbody tr:hover{background:#17253D}
 html[data-theme=dark] tfoot td,html[data-theme=dark] tr.projsub td,html[data-theme=dark] .modal-f,html[data-theme=dark] .calc-box{background:#0F192B}
 html[data-theme=dark] tr.projhead td{background:#16233A}
+tr.grphead td{background:rgba(201,162,39,.14);color:var(--navy,#1B3A5C);font-weight:800;padding:7px 14px;border-inline-start:4px solid #C9A227}
+tr.grphead .pc{margin-inline-start:8px;font-weight:600;font-size:.8em;opacity:.7}
+html[data-theme=dark] tr.grphead td{color:#E6C65A;background:rgba(201,162,39,.16)}
 html[data-theme=dark] tbody tr.outrow,html[data-theme=dark] tbody tr.outrow:nth-child(even){background:#241C0C}
 html[data-theme=dark] tbody tr.basisrow,html[data-theme=dark] tbody tr.basisrow:nth-child(even){background:#131D2F}
 html[data-theme=dark] .bulk-tbl tbody tr:nth-child(even){background:#111B2E}
@@ -419,12 +422,14 @@ html[data-theme=dark] .selbar{background:#1E4FB8}
   #view table{min-width:0 !important;width:100%}
   #view table thead, #view table tfoot td.x{display:none}
   #view table, #view tbody{display:block}
-  #view tbody tr:not(.projhead):not(.morerow){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:11px 14px;border-top:1px solid var(--line);align-items:center}
+  #view tbody tr:not(.projhead):not(.grphead):not(.morerow){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:11px 14px;border-top:1px solid var(--line);align-items:center}
   #view tbody tr td{display:block;padding:0 !important;border:0 !important;background:none !important;min-width:0}
   #view tbody tr:nth-child(even){background:transparent}
   #view tbody tr.inrow td:first-child,#view tbody tr.outrow td:first-child{box-shadow:none !important}
-  #view tr.projhead{display:block}
-  #view tr.projhead td{display:block;padding:9px 14px !important}
+  #view tr.projhead,#view tr.grphead{display:block}
+  #view tr.projhead td,#view tr.grphead td{display:block;padding:9px 14px !important}
+  #view tr.grphead td{background:rgba(201,162,39,.16) !important;border-inline-start:4px solid #C9A227;border-top:0;color:var(--navy)}
+  html[data-theme=dark] #view tr.grphead td{color:#E6C65A}
   #view tr.morerow, #view tr.morerow td{display:block;text-align:center;padding:12px !important}
   #view tr.morerow .btn{width:100%}
   #view tfoot, #view tfoot tr, #view tfoot td{display:block}
@@ -1433,7 +1438,7 @@ function filteredItems() {
     if (S.secF && i.sec !== S.secF) return false;
     if (S.stF === 'need' && stat(i) === 'ok') return false;
     if (S.stF === 'out' && stat(i) !== 'out') return false;
-    if (q.length) { const hay = norm(i.name + ' ' + ((secOf(i.sec) || {}).name || '')); if (!q.every(w => hay.includes(w))) return false; }
+    if (q.length) { const hay = norm(i.name + ' ' + (i.grp || '') + ' ' + ((secOf(i.sec) || {}).name || '')); if (!q.every(w => hay.includes(w))) return false; }
     return true;
   });
 }
@@ -1447,8 +1452,12 @@ function itemsTable() {
     const arr = by[s.id].sort((a, b) => a.name.localeCompare(b.name, 'ar')), nd = arr.filter(i => stat(i) !== 'ok').length;
     if (shownN >= LIM) { hiddenN += arr.length; return; }
     h += `<tr class="projhead"><td colspan="6">🏢 ${esc(s.name)}<span class="pc">${arr.length} صنف${nd ? ' · ' + nd + ' محتاج توريد' : ''}</span></td></tr>`;
-    arr.forEach(i => {
+    const hasGrp = arr.some(i => i.grp), gOrder = [...new Set(arr.map(i => i.grp || ''))].sort((a, b) => !a ? 1 : !b ? -1 : a.localeCompare(b, 'ar'));
+    const seq = []; gOrder.forEach(g => arr.filter(i => (i.grp || '') === g).forEach(i => seq.push(i)));
+    let curG = null;
+    seq.forEach(i => {
       if (shownN >= LIM) { hiddenN++; return; } shownN++;
+      if (hasGrp && (i.grp || '') !== curG) { curG = i.grp || ''; const gn = arr.filter(x => (x.grp || '') === curG).length; h += `<tr class="grphead"><td colspan="6">▸ ${esc(curG || 'أصناف تانية')}<span class="pc">${gn}</span></td></tr>`; }
       const st = stat(i);
       h += `<tr class="selectable" data-fid="${i.id}" data-k="item:${i.id}" ondblclick="editItem(${i.id})">
         <td><b>${esc(i.name)}</b></td><td>${esc(i.unit)}</td><td class="num" style="font-weight:800;${st !== 'ok' ? 'color:' + (st === 'out' ? 'var(--red)' : 'var(--amber)') : ''}">${fmtQ(i.qty)}</td>
@@ -1477,6 +1486,7 @@ function editItem(id) {
   modal(id ? 'تعديل صنف' : 'صنف جديد', `
     <div class="grid2"><div class="f"><label>القسم</label><select id="i_sec">${actSections().map(s => `<option value="${s.id}" ${s.id === it.sec ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
     <div class="f"><label>وحدة القياس</label><input id="i_unit" value="${esc(it.unit)}" list="dl_units" data-complete="unit" autocomplete="off" placeholder="طن / شكارة / متر…"><datalist id="dl_units">${completeOptions.unit().map(u => `<option value="${esc(u)}">`).join('')}</datalist></div></div>
+    <div class="f"><label>العنوان الرئيسي (اختياري) — زي: مواسير، أكواع</label><input id="i_grp" value="${esc(it.grp || '')}" list="dl_grp" autocomplete="off" placeholder="مواسير / أكواع / محابس…"><datalist id="dl_grp">${[...new Set(actItems().map(i => i.grp).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar')).map(g => `<option value="${esc(g)}">`).join('')}</datalist></div>
     <div class="f"><label>اسم الصنف</label><input id="i_name" value="${esc(it.name)}" autocomplete="off"></div>
     <div class="grid2"><div class="f"><label>${id ? 'الكمية الحالية' : 'الكمية الحالية (رصيد أول)'}</label>${id ? `<input class="money" value="${fmtQ(it.qty)}" disabled><div class="hint-k">الكمية بتتغير بالوارد والصرف بس</div>` : '<input class="money" id="i_qty" data-money value="">'}</div>
     <div class="f"><label>حد التنبيه</label><input class="money" id="i_min" data-money value="${it.min ? fmtQ(it.min) : ''}"><div class="hint-k">لما الكمية توصل للرقم ده أو أقل، بنقولك «قرب يخلص»</div></div></div>`,
@@ -1484,16 +1494,16 @@ function editItem(id) {
   setTimeout(() => { const n = $('#i_name'); if (n && !id) n.focus(); }, 60);
 }
 function saveItem(id) {
-  const name = sval('i_name'), unit = sval('i_unit'), sec = +sval('i_sec'), min = mval('i_min'), qty = id ? 0 : mval('i_qty');
+  const name = sval('i_name'), grp = sval('i_grp'), unit = sval('i_unit'), sec = +sval('i_sec'), min = mval('i_min'), qty = id ? 0 : mval('i_qty');
   if (!name) return toast('اكتب اسم الصنف', 'err');
   if (!unit) return toast('اكتب وحدة القياس (طن، شكارة، متر…)', 'err');
   if (qty < 0 || min < 0) return toast('الرقم لازم يكون صفر أو أكبر', 'err');
   const doit = () => {
     snapshot();
     let it;
-    if (id) { it = itemOf(id); Object.assign(it, { sec, name, unit, min }); }
+    if (id) { it = itemOf(id); Object.assign(it, { sec, name, unit, min, grp }); }
     else {
-      it = { id: DB.seq++, sec, name, unit, qty: 0, min };
+      it = { id: DB.seq++, sec, name, grp, unit, qty: 0, min };
       DB.items.push(it);
       if (qty > 0) { it.qty = qty; DB.moves.push({ id: DB.seq++, item: it.id, type: 'in', qty, date: todayISO(), t: nowHM(), party: '', note: 'رصيد أول', void: 0 }); }
     }
