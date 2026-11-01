@@ -1847,7 +1847,7 @@ function openBulk(type, itemId, ids) {
     <div class="f"><label>ملاحظات (اختياري)</label><input id="b_note" autocomplete="off"></div></div>
     <div class="tbl-wrap" style="max-height:44vh;border:1px solid var(--line);border-radius:10px"><table class="bulk-tbl"><thead><tr><th style="width:34px">#</th><th style="width:170px">القسم</th><th>الصنف</th><th style="width:140px">الكمية</th><th style="width:110px">الوحدة</th><th style="width:100px">${isIn ? 'الرصيد الحالي' : 'المتاح'}</th><th style="width:40px"></th></tr></thead><tbody id="bRows"></tbody></table></div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" onclick="bulkAdd()">+ سطر جديد</button>
-      <span class="hint-k" style="margin:0">اكتب أول حروف الصنف و<kbd>Tab</kbd> يكمّله · <kbd>Enter</kbd> السطر اللي بعده · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ الكل${isIn ? '<br>صنف مش موجود؟ اكتب اسمه وهيتضاف جديد (اكتب وحدته) · قسم جديد من قايمة القسم' : ''}</span><datalist id="dl_units_b">${completeOptions.unit().map(u => `<option value="${esc(u)}">`).join('')}</datalist><span class="spacer"></span><b id="bSum" style="color:var(--navy)"></b></div></div>`,
+      <span class="hint-k" style="margin:0">اكتب أول حروف الصنف و<kbd>Tab</kbd> يكمّله وينقلك للخانة اللي بعدها · <kbd>Enter</kbd> يحفظ الكل${isIn ? '<br>صنف مش موجود؟ اكتب اسمه وهيتضاف جديد (اكتب وحدته) · قسم جديد من قايمة القسم' : ''}</span><datalist id="dl_units_b">${completeOptions.unit().map(u => `<option value="${esc(u)}">`).join('')}</datalist><span class="spacer"></span><b id="bSum" style="color:var(--navy)"></b></div></div>`,
     `<button class="btn ${isIn ? 'gold' : 'navy'}" id="bSave" onclick="bulkSave()">${isIn ? 'سجّل الوارد' : 'سجّل الصرف'}</button><button class="btn" onclick="closeModal()">إلغاء</button>`, true);
   /* Enter/Ctrl+Enter جوه النافذة دي ليها سلوك خاص */
   const box = $('[data-bulk]');
@@ -1912,20 +1912,22 @@ function bulkSum() {
   const el = $('#bSum'); if (el) el.textContent = rows.length ? rows.length + ' صنف' : '';
 }
 function bulkKey(e) {
-  if (e.key !== 'Enter') return;
-  e.stopPropagation(); e.preventDefault();
-  if (e.ctrlKey) { document.activeElement.blur(); return setTimeout(bulkSave, 30); }
-  const t = e.target;
-  if (t.classList.contains('b-item')) { const q = t.closest('tr').querySelector('.b-qty'); q.focus(); q.select(); return; }
-  if (t.classList.contains('b-qty')) {
-    t.blur(); const tr = t.closest('tr'); const ui = tr.querySelector('.b-unitin'); if (ui && ui.style.display !== 'none' && !ui.value.trim()) { ui.focus(); return; } let nx = tr.nextElementSibling;
-    if (!nx) nx = bulkAdd(true);
-    nx.querySelector('.b-item').focus(); return;
+  /* Enter = حفظ الكل · Tab = الخانة اللي بعدها (وبيكمّل اسم الصنف) */
+  if (e.key === 'Enter') {
+    if (e.isComposing) return;
+    e.stopPropagation(); e.preventDefault();
+    if (document.activeElement) document.activeElement.blur(); return setTimeout(bulkSave, 30);
   }
-  if (t.classList.contains('b-unitin')) { const tr = t.closest('tr'); let nx = tr.nextElementSibling; if (!nx) nx = bulkAdd(true); nx.querySelector('.b-item').focus(); return; }
-  if (t.classList.contains('b-newsec')) { t.closest('tr').querySelector('.b-item').focus(); return; }
-  if (t.tagName === 'SELECT') { const i = t.closest('tr').querySelector('.b-item'); i.focus(); return; }
-  const all = $$('[data-bulk] input, [data-bulk] select').filter(x => !x.disabled), k = all.indexOf(t); if (k > -1 && all[k + 1]) all[k + 1].focus();
+  if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey) return;
+  const t = e.target, tr = t.closest && t.closest('#bRows tr'); if (!tr) return;
+  const nextRow = () => { let nx = tr.nextElementSibling; if (!nx) nx = bulkAdd(true); const i = nx.querySelector('.b-item'); i.focus(); i.select && i.select(); };
+  if (t.classList.contains('b-item')) { e.preventDefault(); setTimeout(() => { const q = tr.querySelector('.b-qty'); q.focus(); q.select(); }, 0); return; }
+  if (t.classList.contains('b-qty')) {
+    e.preventDefault();
+    const ui = tr.querySelector('.b-unitin'); if (ui && ui.style.display !== 'none' && !ui.value.trim()) { ui.focus(); return; }
+    return nextRow();
+  }
+  if (t.classList.contains('b-unitin')) { e.preventDefault(); return nextRow(); }
 }
 function bulkSave(skipDup) {
   const type = B.type, isIn = type === 'in';
