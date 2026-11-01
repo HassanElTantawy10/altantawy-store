@@ -510,6 +510,8 @@ html[data-theme=dark] .gs-h{color:#E6C65A}
 #gres{max-height:62vh;overflow:auto}
 .chip.navy{background:#E3EAF3;color:#1B3A5C}html[data-theme=dark] .chip.navy{background:#1E3354;color:#9CC3F0}
 
+.b-grpin.auto,#i_grp.auto{background:rgba(201,162,39,.12);border-color:#C9A227}
+
 </style>
 </head>
 <body>
@@ -1619,7 +1621,14 @@ function editItem(id) {
     <div class="grid2"><div class="f"><label>${id ? 'الكمية الحالية' : 'الكمية الحالية (رصيد أول)'}</label>${id ? `<input class="money" value="${fmtQ(it.qty)}" disabled><div class="hint-k">الكمية بتتغير بالوارد والصرف بس</div>` : '<input class="money" id="i_qty" data-money value="">'}</div>
     <div class="f"><label>حد التنبيه</label><input class="money" id="i_min" data-money value="${it.min ? fmtQ(it.min) : ''}"><div class="hint-k">لما الكمية توصل للرقم ده أو أقل، بنقولك «قرب يخلص»</div></div></div>`,
     `<button class="btn navy" onclick="saveItem(${id})">احفظ</button><button class="btn" onclick="closeModal()">إلغاء</button>`);
-  setTimeout(() => { const n = $('#i_name'); if (n && !id) n.focus(); }, 60);
+  setTimeout(() => {
+    const n = $('#i_name'), g = $('#i_grp'); if (n && !id) n.focus();
+    if (n && g) {
+      if (g.value) g.dataset.man = '1';
+      g.addEventListener('input', () => { g.dataset.man = '1'; g.classList.remove('auto'); });
+      n.addEventListener('input', () => { if (g.dataset.man === '1') return; const v = guessGrp(n.value, +sval('i_sec')); g.value = v; g.classList.toggle('auto', !!v); });
+    }
+  }, 60);
 }
 function saveItem(id) {
   const name = sval('i_name'), grp = sval('i_grp'), unit = sval('i_unit'), sec = +sval('i_sec'), min = mval('i_min'), qty = id ? 0 : mval('i_qty');
@@ -1870,7 +1879,7 @@ function openBulk(type, itemId, ids) {
     <div class="f"><label>ملاحظات (اختياري)</label><input id="b_note" autocomplete="off"></div></div>
     <div class="tbl-wrap" style="max-height:44vh;border:1px solid var(--line);border-radius:10px"><table class="bulk-tbl"><thead><tr><th style="width:34px">#</th><th style="width:170px">القسم</th><th>الصنف</th><th style="width:140px">الكمية</th><th style="width:110px">الوحدة</th><th style="width:100px">${isIn ? 'الرصيد الحالي' : 'المتاح'}</th><th style="width:40px"></th></tr></thead><tbody id="bRows"></tbody></table></div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" onclick="bulkAdd()">+ سطر جديد</button>
-      <span class="hint-k" style="margin:0">اكتب أول حروف الصنف و<kbd>Tab</kbd> يكمّله وينقلك للخانة اللي بعدها · <kbd>Enter</kbd> يحفظ الكل${isIn ? '<br>صنف مش موجود؟ اكتب اسمه وهيتضاف جديد (اكتب وحدته) · قسم جديد من قايمة القسم' : ''}</span><datalist id="dl_units_b">${completeOptions.unit().map(u => `<option value="${esc(u)}">`).join('')}</datalist><span class="spacer"></span><b id="bSum" style="color:var(--navy)"></b></div></div>`,
+      <span class="hint-k" style="margin:0">اكتب أول حروف الصنف و<kbd>Tab</kbd> يكمّله وينقلك للخانة اللي بعدها · <kbd>Enter</kbd> يحفظ الكل${isIn ? '<br>صنف مش موجود؟ اكتب اسمه وهيتضاف جديد (اكتب وحدته) · قسم جديد من قايمة القسم' : ''}</span><datalist id="dl_units_b">${completeOptions.unit().map(u => `<option value="${esc(u)}">`).join('')}</datalist><datalist id="dl_grp_b">${allGrps().map(g => `<option value="${esc(g)}">`).join('')}</datalist><span class="spacer"></span><b id="bSum" style="color:var(--navy)"></b></div></div>`,
     `<button class="btn ${isIn ? 'gold' : 'navy'}" id="bSave" onclick="bulkSave()">${isIn ? 'سجّل الوارد' : 'سجّل الصرف'}</button><button class="btn" onclick="closeModal()">إلغاء</button>`, true);
   /* Enter/Ctrl+Enter جوه النافذة دي ليها سلوك خاص */
   const box = $('[data-bulk]');
@@ -1891,7 +1900,7 @@ function bulkAdd(quiet) {
   const tr = document.createElement('tr');
   tr.innerHTML = `<td class="cell-mut">${$$('#bRows tr').length + 1}</td>
     <td><select class="b-sec"><option value="0">— كل الأقسام —</option>${actSections().map(s => `<option value="${s.id}" ${String(s.id) === secV ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}${B.type === 'in' ? `<option value="new" ${secV === 'new' ? 'selected' : ''}>➕ قسم جديد…</option>` : ''}</select><input class="b-newsec" placeholder="اسم القسم الجديد" autocomplete="off" style="display:none;margin-top:4px" value="${esc(prevNew)}"></td>
-    <td><input class="b-item" list="dl_b${n}" data-complete="item" autocomplete="off" placeholder="اكتب اسم الصنف…"><datalist id="dl_b${n}"></datalist></td>
+    <td><input class="b-item" list="dl_b${n}" data-complete="item" autocomplete="off" placeholder="اكتب اسم الصنف…"><datalist id="dl_b${n}"></datalist><input class="b-grpin" list="dl_grp_b" placeholder="العنوان الرئيسي (مواسير، أكواع…)" autocomplete="off" style="display:none;margin-top:4px"></td>
     <td><input class="b-qty money" data-money placeholder="الكمية" inputmode="decimal" style="font-size:15px;padding:7px 10px"></td><td class="b-unit cell-mut"><span class="b-unit-t"></span><input class="b-unitin" list="dl_units_b" data-complete="unit" placeholder="الوحدة" autocomplete="off" style="display:none"></td><td class="b-bal num cell-mut"></td>
     <td><button class="btn ghost sm" tabindex="-1" onclick="bulkDel(this)">✕</button></td>`;
   $('#bRows').appendChild(tr); wireInputs(tr, false); fillDL(tr); if (secV === 'new') tr.querySelector('.b-newsec').style.display = '';
@@ -1913,11 +1922,30 @@ function resolveRow(tr) {
   if (B.type === 'in') return { isNew: true, name: tr.querySelector('.b-item').value.trim().replace(/\s+/g, ' ') };
   return { err: 'الصنف مش موجود — تأكد من الاسم' };
 }
+/* العنوان الرئيسي المتوقع لصنف جديد: من أول كلمة في اسمه (ماسورة 3 بوصة ← نفس عنوان «ماسورة 1 بوصة») */
+function guessGrp(name, secId, extra) {
+  const w = norm(name).split(' ')[0]; if (!w || w.length < 2) return '';
+  const cnt = {}, add = (g, sc) => { if (g) cnt[g] = (cnt[g] || 0) + sc; };
+  actItems().forEach(i => { if (i.grp && norm(i.name).split(' ')[0] === w) add(i.grp, i.sec === secId ? 3 : 1); });
+  (extra || []).forEach(x => { if (x.grp && norm(x.name).split(' ')[0] === w) add(x.grp, 2); });
+  let best = '', bs = 0; Object.keys(cnt).forEach(g => { if (cnt[g] > bs) { bs = cnt[g]; best = g; } });
+  return best;
+}
+const allGrps = () => [...new Set(actItems().map(i => i.grp).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+function rowGrp(tr, r) {
+  const gi = tr.querySelector('.b-grpin'); if (!gi) return;
+  gi.style.display = r.isNew ? '' : 'none'; if (!r.isNew) return;
+  if (gi.dataset.man === '1') return;
+  const extra = $$('#bRows tr').filter(x => x !== tr).map(x => ({ name: x.querySelector('.b-item').value, grp: (x.querySelector('.b-grpin') || {}).value || '' }));
+  const g = guessGrp(r.name, +tr.querySelector('.b-sec').value, extra);
+  gi.value = g; gi.classList.toggle('auto', !!g); gi.title = g ? 'اتملى لوحده من صنف شبهه — تقدر تغيّره' : '';
+}
 function rowUpdate(tr) {
   const r = resolveRow(tr), inp = tr.querySelector('.b-item'), sel = tr.querySelector('.b-sec');
   inp.classList.toggle('bad', !!r.err); inp.title = r.err || '';
   tr.querySelector('.b-unit-t').textContent = r.item ? r.item.unit : '';
   const ui = tr.querySelector('.b-unitin'); ui.style.display = r.isNew ? '' : 'none'; if (!r.isNew) ui.classList.remove('bad');
+  rowGrp(tr, r);
   const nsv = sel.value === 'new'; tr.querySelector('.b-newsec').style.display = nsv ? '' : 'none';
   tr.querySelector('.b-bal').innerHTML = r.item ? fmtQ(r.item.qty) : r.isNew ? '<span class="chip gold" title="هيتضاف كصنف جديد">جديد ✦</span>' : '';
   if (r.item && +sel.value !== r.item.sec) { sel.value = r.item.sec; fillDL(tr); }
@@ -1927,6 +1955,7 @@ function bulkInput(e) {
   const tr = e.target.closest('tr'); if (!tr) return;
   if (e.target.classList.contains('b-sec')) { fillDL(tr); if (e.target.value === 'new') setTimeout(() => { const n = tr.querySelector('.b-newsec'); n.style.display = ''; n.focus(); }, 20); }
   if (e.target.classList.contains('b-newsec') || e.target.classList.contains('b-unitin')) e.target.classList.remove('bad');
+  if (e.target.classList.contains('b-grpin')) { e.target.dataset.man = '1'; e.target.classList.remove('auto'); return; }
   if (e.target.classList.contains('b-item') || e.target.classList.contains('b-sec')) rowUpdate(tr);
   if (e.target.classList.contains('b-qty')) { e.target.classList.remove('bad'); bulkSum(); }
 }
@@ -1943,14 +1972,19 @@ function bulkKey(e) {
   }
   if (e.key !== 'Tab' || e.shiftKey || e.ctrlKey || e.altKey) return;
   const t = e.target, tr = t.closest && t.closest('#bRows tr'); if (!tr) return;
-  const nextRow = () => { let nx = tr.nextElementSibling; if (!nx) nx = bulkAdd(true); const i = nx.querySelector('.b-item'); i.focus(); i.select && i.select(); };
-  if (t.classList.contains('b-item')) { e.preventDefault(); setTimeout(() => { const q = tr.querySelector('.b-qty'); q.focus(); q.select(); }, 0); return; }
+  const nextRow = () => { let nx = tr.nextElementSibling; if (!nx) nx = bulkAdd(true);
+    const ps = tr.querySelector('.b-sec'), ns = nx.querySelector('.b-sec');
+    if (!nx.querySelector('.b-item').value.trim() && ns.value === '0' && ps.value !== '0') { ns.value = ps.value; if (ps.value === 'new') { const nn = nx.querySelector('.b-newsec'); nn.value = tr.querySelector('.b-newsec').value; nn.style.display = ''; } fillDL(nx); }
+    const i = nx.querySelector('.b-item'); i.focus(); i.select && i.select(); };
+  if (t.classList.contains('b-item')) { e.preventDefault(); rowUpdate(tr); const q = tr.querySelector('.b-qty'); q.focus(); q.select(); return; }
   if (t.classList.contains('b-qty')) {
     e.preventDefault();
     const ui = tr.querySelector('.b-unitin'); if (ui && ui.style.display !== 'none' && !ui.value.trim()) { ui.focus(); return; }
+    const gi = tr.querySelector('.b-grpin'); if (gi && gi.style.display !== 'none') { gi.focus(); gi.select(); return; }
     return nextRow();
   }
-  if (t.classList.contains('b-unitin')) { e.preventDefault(); return nextRow(); }
+  if (t.classList.contains('b-unitin')) { e.preventDefault(); const gi = tr.querySelector('.b-grpin'); if (gi && gi.style.display !== 'none') { gi.focus(); gi.select(); return; } return nextRow(); }
+  if (t.classList.contains('b-grpin')) { e.preventDefault(); return nextRow(); }
 }
 function bulkSave(skipDup) {
   const type = B.type, isIn = type === 'in';
@@ -1970,7 +2004,7 @@ function bulkSave(skipDup) {
       if (sv === '0') return bad(tr, '.b-sec', `سطر ${n}: «${r.name}» صنف جديد — اختار له القسم (أو قسم جديد)`);
       if (sv === 'new' && !nsn) return bad(tr, '.b-newsec', `سطر ${n}: اكتب اسم القسم الجديد`);
       if (!unit) return bad(tr, '.b-unitin', `سطر ${n}: اكتب وحدة الصنف الجديد «${r.name}» (طن، لفة، متر…)`);
-      return lines.push({ isNew: true, name: r.name, unit, secId: sv === 'new' ? 0 : +sv, secName: nsn, qty: q, tr, n });
+      return lines.push({ isNew: true, name: r.name, unit, grp: ((tr.querySelector('.b-grpin') || {}).value || '').trim().replace(/\s+/g, ' '), secId: sv === 'new' ? 0 : +sv, secName: nsn, qty: q, tr, n });
     }
     lines.push({ item: r.item, qty: q, tr, n });
   });
@@ -2005,7 +2039,7 @@ function bulkSave(skipDup) {
       sid = sec.id;
     }
     const ik = sid + '|' + norm(l.name); let it = itemMade[ik];
-    if (!it) { it = { id: DB.seq++, sec: sid, name: l.name, unit: l.unit, qty: 0, min: 0 }; DB.items.push(it); itemMade[ik] = it; nItem++; }
+    if (!it) { it = { id: DB.seq++, sec: sid, name: l.name, grp: l.grp || '', unit: l.unit, qty: 0, min: 0 }; DB.items.push(it); itemMade[ik] = it; nItem++; }
     l.item = it;
   });
   const t = date === todayISO() ? nowHM() : '12:00';
