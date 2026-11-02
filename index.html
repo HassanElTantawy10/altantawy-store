@@ -1125,8 +1125,10 @@ const ping = () => fetch('/api/ping?id=' + CLIENT, { cache: 'no-store' }).catch(
 if (!MOBILE) { setInterval(ping, 4000); ping(); }
 /* ====== الخروج: سؤال الحفظ قبل ما البرنامج يقفل ====== */
 let EXITING = false;
+const exitAck = () => { try { fetch('/api/exitack', { method: 'POST', headers: { 'X-Req': '1' } }).catch(() => { }); } catch (e) { } };
 function askExit() {
   if (EXITING || MOBILE) return;
+  exitAck();
   if (document.body.classList.contains('locked')) return doExit(false);
   if ($('#exitAsk')) return;
   const bulk = $('#bRows') ? '<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#FEF3C7;color:#92400E;font-size:13px">⚠ فيه نافذة إدخال/صرف جماعي مفتوحة ولسه متسجّلتش — لو خرجت دلوقتي مش هتتسجل.</div>' : '';
@@ -1145,7 +1147,8 @@ async function doExit(withSave) {
     catch (e) { if (b) { b.disabled = false; b.textContent = '💾 احفظ واخرج'; } return toast('مقدرتش أحفظ: ' + e.message + ' — مخرجتش', 'err'); }
   }
   EXITING = true;
-  try { navigator.sendBeacon('/api/bye?id=' + CLIENT); } catch (e) { }
+  try { navigator.sendBeacon('/api/bye?id=' + CLIENT + '&via=dialog'); } catch (e) { }
+  try { await fetch('/api/quitnow', { method: 'POST', headers: { 'X-Req': '1' } }); } catch (e) { }
   try { window.close(); } catch (e) { }
   setTimeout(() => { document.body.innerHTML = '<div style="padding:60px;text-align:center;font:16px Tahoma,sans-serif;color:#1B3A5C">✓ اتحفظ وخلاص — اقفل النافذة دي ببساطة</div>'; }, 700);
 }
@@ -1164,7 +1167,7 @@ window.addEventListener('pagehide', () => {
   const locked = document.body.classList.contains('locked'), ask = !EXITING && !locked;
   let body = '';
   try { if (!locked && DB && DB.sections && (saveTimer || saving)) { clearTimeout(saveTimer); saveTimer = null; body = JSON.stringify(DB); } } catch (e) { }
-  try { navigator.sendBeacon('/api/bye?id=' + CLIENT + (ask ? '&ask=1' : ''), body); } catch (e) { }
+  try { navigator.sendBeacon('/api/bye?id=' + CLIENT + (ask ? '&ask=1' : '') + '&l=' + (locked ? 1 : 0) + '&x=' + (EXITING ? 1 : 0), body); } catch (e) { }
 });
 
 /* ====================== اختصارات الوصول للبيانات ====================== */
