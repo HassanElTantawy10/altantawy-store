@@ -1262,7 +1262,18 @@ function printDoc(title, ref, body) {
     <div class="sign-row"><div><div class="sign-line">أمين المخزن</div></div><div><div class="sign-line">اعتماد الإدارة</div></div></div>
     <div class="doc-footer">تم إصدار هذا المستند بواسطة نظام مخازن الطنطاوي — ${dt}</div>`;
   document.body.classList.add('printing');
-  setTimeout(() => { try { window.print(); } finally { document.body.classList.remove('printing'); } }, 80);
+  /* اسم ملف الـ PDF بيطلع لوحده: نوع التقرير — المشروع — التفاصيل — التاريخ */
+  const fname = pdfName(title, ref);
+  document.title = fname;
+  setTimeout(() => { try { window.print(); } finally { document.body.classList.remove('printing'); setTimeout(() => { document.title = 'مخازن الطنطاوي'; }, 1500); } }, 80);
+}
+function pdfName(title, ref) {
+  const d = new Date(), stamp = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + '.' + pad2(d.getMinutes());
+  const parts = [String(title || 'تقرير')];
+  if (PID && curProj() && !String(title).includes(curProj().name)) parts.push(curProj().name);
+  if (ref && String(ref).trim() && String(ref).trim() !== dsp(todayISO()) && !String(title).includes(String(ref).trim())) parts.push(String(ref).replace(/→/g, 'إلى'));
+  parts.push(stamp);
+  return parts.map(x => String(x).replace(/\s*[—–]\s*/g, ' - ').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim()).filter(Boolean).join(' - ').slice(0, 150);
 }
 window.addEventListener('afterprint', () => document.body.classList.remove('printing'));
 
