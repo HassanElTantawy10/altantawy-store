@@ -1153,12 +1153,19 @@ window.addEventListener('beforeunload', e => {
   if (MOBILE || EXITING || document.body.classList.contains('locked')) return;
   /* كل حاجة بتتحفظ أول بأول، فمفيش داعي لرسالة المتصفح (Leave / Cancel).
      بنمنع القفل بس لو فيه حفظ لسه شغال أو إدخال جماعي مكتوب ولسه متسجّلش */
-  const pending = !!(saveTimer || saving), bulkData = $$('#bRows tr').some(tr => tr.querySelector('.b-item').value.trim() || tr.querySelector('.b-qty').value.trim());
-  try { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; flushSave(); } } catch (x) { }
-  if (!pending && !bulkData) return;
+  /* لو النافذة اتقفلت بزرار X: البرنامج نفسه (ويندوز) هيسأل عن الحفظ بعد ما تتقفل.
+     بنوقّف القفل بس لو فيه إدخال جماعي مكتوب ولسه متسجّلش */
+  const bulkData = $$('#bRows tr').some(tr => tr.querySelector('.b-item').value.trim() || tr.querySelector('.b-qty').value.trim());
+  if (!bulkData) return;
   askExit(); e.preventDefault(); e.returnValue = '';
 });
-window.addEventListener('pagehide', () => { if (!MOBILE) try { navigator.sendBeacon('/api/bye?id=' + CLIENT); } catch (e) { } });
+window.addEventListener('pagehide', () => {
+  if (MOBILE) return;
+  const locked = document.body.classList.contains('locked'), ask = !EXITING && !locked;
+  let body = '';
+  try { if (!locked && DB && DB.sections && (saveTimer || saving)) { clearTimeout(saveTimer); saveTimer = null; body = JSON.stringify(DB); } } catch (e) { }
+  try { navigator.sendBeacon('/api/bye?id=' + CLIENT + (ask ? '&ask=1' : ''), body); } catch (e) { }
+});
 
 /* ====================== اختصارات الوصول للبيانات ====================== */
 const secOf = id => DB.sections.find(s => s.id === id);
