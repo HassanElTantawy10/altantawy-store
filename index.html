@@ -2757,7 +2757,7 @@ function mbKey(e) {
   if (e.key === 'Tab') { mbClose(); return true; }
   return false;
 }
-document.addEventListener('mousedown', e => { if (MB.open >= 0 && !e.target.closest('#mbDrop,#menubar')) mbClose(); else if (MB.active && MB.open < 0 && !e.target.closest('#menubar')) mbClose(); });
+document.addEventListener('mousedown', e => { if (!e.target.isConnected) return; if (MB.open >= 0 && !e.target.closest('#mbDrop,#menubar')) mbClose(); else if (MB.active && MB.open < 0 && !e.target.closest('#menubar')) mbClose(); });
 
 /* ---------- شريط الحالة ---------- */
 function updateStatus() {
